@@ -109,52 +109,49 @@ def main():
                 st.text_area("File content:", news_text[:500] + "..." if len(news_text) > 500 else news_text)
                 
         elif input_method == "🔗 URL Input":
-            url = st.text_input("Enter news article URL:", placeholder="https://example.com/news-article")
+            url = st.text_input("Enter news article URL:", placeholder="https://example.com/news")
 
             if url and st.button("📥 Fetch Article"):
                 try:
+            # First Attempt → Newspaper3k
                     article = Article(url)
                     article.download()
                     article.parse()
                     news_text = article.text
 
-                    st.success("✔ Article successfully fetched!")
-                    st.text_area("Extracted Article Text:", news_text[:500] + "..." if len(news_text) > 500 else news_text)
+            # Check if extracted text is usable
+                    if len(news_text.strip()) < 50:
+                        raise Exception("Insufficient text from Newspaper3k")
 
-                except Exception as e:
-                    st.error(f"❌ Failed to fetch article: {str(e)}")
+                    st.success("✔ Article fetched using Newspaper3k!")
 
-        if st.button("🔍 Analyze News", type="primary", disabled=not news_text):
-            if validate_input(news_text):
-                analyze_news(news_text, show_preprocessing, confidence_threshold)
-            else:
-                st.error("Please enter valid news text (minimum 50 characters)")
-    
-    with col2:
-        render_queue(st.session_state.queue)
-    
-    # Statistics section
-    if st.session_state.queue:
-        st.divider()
-        render_statistics(st.session_state.queue, st.session_state.analytics)
+                except Exception:
+                    st.warning("⚠ Newspaper3k failed. Trying BeautifulSoup fallback...")
 
-def analyze_news(news_text, show_preprocessing, confidence_threshold):
-    # Add to queue
-    queue_item = {
-        "id": len(st.session_state.queue) + 1,
-        "text": truncate_text(news_text, 100),
-        "full_text": news_text,
-        "status": "🔄 Processing...",
-        "timestamp": datetime.now(),
-        "confidence_threshold": confidence_threshold
-    }
-    st.session_state.queue.append(queue_item)
-    
-    # Show preprocessing if requested
-    if show_preprocessing:
-        with st.expander("🔧 Text Preprocessing"):
-            processed_text = st.session_state.detector.preprocess_text(news_text)
-            st.code(processed_text[:500] + "..." if len(processed_text) > 500 else processed_text)
+                    try:
+                # Request with headers to bypass bot protection
+                        response = requests.get(url, headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                        })
+                        soup = BeautifulSoup(response.text, "html.parser")
+
+                # Extract paragraphs
+                        paragraphs = soup.find_all("p")
+                        news_text = "\n".join([p.get_text() for p in paragraphs])
+
+                        if len(news_text.strip()) < 50:
+                            raise Exception("BeautifulSoup extracted too little text")
+
+                        st.success("✔ Article fetched using BeautifulSoup!")
+
+                    except Exception as e2:
+                        st.error(f"❌ Failed to fetch article using both methods: {str(e2)}")
+                        return
+
+                # Display extracted article text
+        st.text_area("Extracted Article Text:", 
+                     news_text[:500] + "..." if len(news_text) > 500 else news_text)
+
     
     # Progress bar
     progress_bar = st.progress(0)
