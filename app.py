@@ -86,7 +86,7 @@ def main():
         st.header("📝 News Article Analysis")
 
         input_method = st.radio("Choose input method:", 
-                               ["📝 Text Input", "📁 File Upload", "🔗 URL Input"], 
+                               ["📝 Text Input", "📁 File Upload"], 
                                horizontal=True)
         
         news_text = ""
@@ -105,10 +105,7 @@ def main():
                 news_text = str(uploaded_file.read(), "utf-8")
                 st.text_area("File content:", news_text[:500] + "..." if len(news_text) > 500 else news_text)
                 
-        elif input_method == "🔗 URL Input":
-            url = st.text_input("Enter news article URL:", placeholder="https://example.com/news-article")
-            if url and st.button("📥 Fetch Article"):
-                st.info("URL scraping feature coming soon!")
+       
 
         if st.button("🔍 Analyze News", type="primary", disabled=not news_text):
             if validate_input(news_text):
