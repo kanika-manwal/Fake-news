@@ -1,4 +1,7 @@
 # save as download_nltk.py and run: python download_nltk.py
+from newspaper import Article
+import requests
+from bs4 import BeautifulSoup
 import nltk
 nltk.download('punkt')
 nltk.download('stopwords')
@@ -107,8 +110,19 @@ def main():
                 
         elif input_method == "🔗 URL Input":
             url = st.text_input("Enter news article URL:", placeholder="https://example.com/news-article")
+
             if url and st.button("📥 Fetch Article"):
-                st.info("URL scraping feature coming soon!")
+                try:
+                    article = Article(url)
+                    article.download()
+                    article.parse()
+                    news_text = article.text
+
+                    st.success("✔ Article successfully fetched!")
+                    st.text_area("Extracted Article Text:", news_text[:500] + "..." if len(news_text) > 500 else news_text)
+
+                except Exception as e:
+                    st.error(f"❌ Failed to fetch article: {str(e)}")
 
         if st.button("🔍 Analyze News", type="primary", disabled=not news_text):
             if validate_input(news_text):
