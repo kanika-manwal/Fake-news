@@ -1,11 +1,8 @@
-# save as download_nltk.py and run: python download_nltk.py
-from newspaper import Article
-import requests
-from bs4 import BeautifulSoup
+
 import nltk
 nltk.download('punkt')
 nltk.download('stopwords')
-print("✅ NLTK resources downloaded.")
+print("NLTK resources downloaded.")
 
 import streamlit as st
 import pandas as pd
@@ -55,24 +52,24 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.header("🤖 AI Model Control")
+        st.header("AI Model Control")
 
         if not st.session_state.detector.is_trained:
-            if st.button("🚀 Train Model", type="primary"):
+            if st.button(" Train Model", type="primary"):
                 with st.spinner("Training AI model..."):
                     success = st.session_state.detector.train_model()
                     if success:
-                        st.success("✅ Model trained successfully!")
+                        st.success(" Model trained successfully!")
                         st.balloons()
                     else:
-                        st.error("❌ Training failed. Check data files.")
+                        st.error("Training failed. Check data files.")
         else:
-            st.success("✅ Model Ready")
+            st.success("Model Ready")
             accuracy = st.session_state.detector.get_accuracy()
             st.metric("Model Accuracy", f"{accuracy:.1%}")
 
         st.divider()
-        st.subheader("⚙️ Settings")
+        st.subheader("Settings")
         confidence_threshold = st.slider("Confidence Threshold", 0.5, 1.0, 0.7, 0.05)
         show_preprocessing = st.checkbox("Show text preprocessing", False)
         st.divider()
@@ -86,15 +83,15 @@ def main():
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.header("📝 News Article Analysis")
+        st.header(" News Article Analysis")
 
         input_method = st.radio("Choose input method:", 
-                               ["📝 Text Input", "📁 File Upload", "🔗 URL Input"], 
+                               [" Text Input", " File Upload", " URL Input"], 
                                horizontal=True)
         
         news_text = ""
 
-        if input_method == "📝 Text Input":
+        if input_method == "Text Input":
             news_text = st.text_area(
                 "Paste your news article here:",
                 height=200,
@@ -102,56 +99,48 @@ def main():
                 help="Paste any news article text for AI-powered fact checking"
             )
             
-        elif input_method == "📁 File Upload":
+        elif input_method == " File Upload":
             uploaded_file = st.file_uploader("Upload a text file", type=['txt', 'csv'])
             if uploaded_file:
                 news_text = str(uploaded_file.read(), "utf-8")
                 st.text_area("File content:", news_text[:500] + "..." if len(news_text) > 500 else news_text)
                 
-        elif input_method == "🔗 URL Input":
-            url = st.text_input("Enter news article URL:", placeholder="https://example.com/news")
+        elif input_method == " URL Input":
+            url = st.text_input("Enter news article URL:", placeholder="https://example.com/news-article")
+            if url and st.button("Fetch Article"):
+                st.info("URL scraping feature coming soon!")
 
-            if url and st.button("📥 Fetch Article"):
-                try:
-            # First Attempt → Newspaper3k
-                    article = Article(url)
-                    article.download()
-                    article.parse()
-                    news_text = article.text
+        if st.button(" Analyze News", type="primary", disabled=not news_text):
+            if validate_input(news_text):
+                analyze_news(news_text, show_preprocessing, confidence_threshold)
+            else:
+                st.error("Please enter valid news text (minimum 50 characters)")
+    
+    with col2:
+        render_queue(st.session_state.queue)
+    
+    # Statistics section
+    if st.session_state.queue:
+        st.divider()
+        render_statistics(st.session_state.queue, st.session_state.analytics)
 
-            # Check if extracted text is usable
-                    if len(news_text.strip()) < 50:
-                        raise Exception("Insufficient text from Newspaper3k")
-
-                    st.success("✔ Article fetched using Newspaper3k!")
-
-                except Exception:
-                    st.warning("⚠ Newspaper3k failed. Trying BeautifulSoup fallback...")
-
-                    try:
-                # Request with headers to bypass bot protection
-                        response = requests.get(url, headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                        })
-                        soup = BeautifulSoup(response.text, "html.parser")
-
-                # Extract paragraphs
-                        paragraphs = soup.find_all("p")
-                        news_text = "\n".join([p.get_text() for p in paragraphs])
-
-                        if len(news_text.strip()) < 50:
-                            raise Exception("BeautifulSoup extracted too little text")
-
-                        st.success("✔ Article fetched using BeautifulSoup!")
-
-                    except Exception as e2:
-                        st.error(f"❌ Failed to fetch article using both methods: {str(e2)}")
-                        return
-
-                # Display extracted article text
-        st.text_area("Extracted Article Text:", 
-                     news_text[:500] + "..." if len(news_text) > 500 else news_text)
-
+def analyze_news(news_text, show_preprocessing, confidence_threshold):
+    # Add to queue
+    queue_item = {
+        "id": len(st.session_state.queue) + 1,
+        "text": truncate_text(news_text, 100),
+        "full_text": news_text,
+        "status": " Processing...",
+        "timestamp": datetime.now(),
+        "confidence_threshold": confidence_threshold
+    }
+    st.session_state.queue.append(queue_item)
+    
+    # Show preprocessing if requested
+    if show_preprocessing:
+        with st.expander("🔧 Text Preprocessing"):
+            processed_text = st.session_state.detector.preprocess_text(news_text)
+            st.code(processed_text[:500] + "..." if len(processed_text) > 500 else processed_text)
     
     # Progress bar
     progress_bar = st.progress(0)
@@ -160,17 +149,17 @@ def main():
     for i in range(100):
         progress_bar.progress(i + 1)
         if i < 30:
-            status_text.text("🔤 Preprocessing text...")
+            status_text.text(" Preprocessing text...")
         elif i < 70:
-            status_text.text("🧠 Running AI analysis...")
+            status_text.text(" Running AI analysis...")
         else:
-            status_text.text("📊 Calculating confidence scores...")
+            status_text.text(" Calculating confidence scores...")
         time.sleep(0.02)
     
     try:
         prediction, confidence, probabilities = st.session_state.detector.predict(news_text)
         st.session_state.queue[-1].update({
-            "status": "✅ Complete",
+            "status": " Complete",
             "prediction": prediction,
             "confidence": confidence,
             "probabilities": probabilities
@@ -181,7 +170,7 @@ def main():
         st.session_state.analytics.add_analysis(prediction, confidence, len(news_text))
     except Exception as e:
         st.error(f"Analysis failed: {str(e)}")
-        st.session_state.queue[-1]["status"] = "❌ Failed"
+        st.session_state.queue[-1]["status"] = " Failed"
 
 def display_results(prediction, confidence, probabilities, threshold):
     import plotly.graph_objects as go
@@ -190,13 +179,13 @@ def display_results(prediction, confidence, probabilities, threshold):
     is_fake = prediction == 1
     result_text = "FAKE NEWS" if is_fake else "REAL NEWS"
     result_class = "fake-news" if is_fake else "real-news"
-    icon = "🚨" if is_fake else "✅"
+    icon = "" if is_fake else ""
 
     st.markdown(f"""
     <div class="result-card {result_class}">
         <h2>{icon} {result_text}</h2>
         <h3>Confidence: {confidence:.1%}</h3>
-        <p>{'⚠️ This article may contain misleading information' if is_fake else '👍 This article appears to be legitimate'}</p>
+        <p>{'This article may contain misleading information' if is_fake else ' This article appears to be legitimate'}</p>
     </div>
     """, unsafe_allow_html=True)
 
