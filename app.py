@@ -91,7 +91,7 @@ def main():
         
         news_text = ""
 
-        if input_method == "Text Input":
+        if input_method == "📝 Text Input":
             news_text = st.text_area(
                 "Paste your news article here:",
                 height=200,
